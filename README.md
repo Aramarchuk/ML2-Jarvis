@@ -93,15 +93,22 @@ The application reads configuration from `.env` or the process environment:
 - `JARVIS_SYSTEM_PROMPT`
 - `JARVIS_OLLAMA_URL`
 - `JARVIS_OLLAMA_MODEL`
+- `JARVIS_ROUTER_OLLAMA_MODEL`
+- `JARVIS_OLLAMA_TIMEOUT_SECONDS`
+- `JARVIS_ROUTER_TIMEOUT_SECONDS`
 - `JARVIS_STT_MODEL`
 - `JARVIS_TTS_VOICE`
 - `JARVIS_RECORD_SECONDS`
 - `JARVIS_SAMPLE_RATE`
 - `JARVIS_LANGUAGE`
 - `JARVIS_AUDIO_DIR`
+- `JARVIS_ROUTER_CONFIDENCE_THRESHOLD`
+- `JARVIS_SHORT_TERM_SUMMARY_INTERVAL`
+- `JARVIS_SHORT_TERM_RECENT_TURNS`
 
 ## Notes
 
 - Text mode is the easiest way to verify the LLM and dialogue stack first.
 - Voice mode records a short clip, transcribes it, then synthesizes the assistant reply.
+- The router can use a different Ollama model than the main assistant. The default template uses `tinyllama` for routing and `llama3.2:3b` for final responses.
 - If speech recognition or synthesis dependencies are not installed correctly, the program will report a clear error instead of crashing without context.
