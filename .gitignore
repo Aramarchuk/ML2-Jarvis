@@ -1,0 +1,8 @@
+.vscode/
+.idea
+.codex
+__pycache__/
+.pytest_cache/
+.venv/
+.env
+.jarvis_audio/
