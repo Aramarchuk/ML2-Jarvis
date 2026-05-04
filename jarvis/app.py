@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 from jarvis.audio import AudioError, AudioRecorder
 from jarvis.config import AppConfig
 from jarvis.dialogue import DialogueManager
 from jarvis.llm import LLMError, OllamaClient
+from jarvis.router import LLMRouter, RouterError
+from jarvis.session_memory import SessionMemory
 from jarvis.stt import FasterWhisperTranscriber, SpeechToTextError
+from jarvis.tools import (
+    CalculatorTool,
+    FileSearchTool,
+    SystemInfoTool,
+    TimeTool,
+    ToolError,
+    ToolRegistry,
+)
 from jarvis.tts import EdgeTTSPlayer, TextToSpeechError
 
 
@@ -33,13 +44,38 @@ def main() -> int:
 
     config = AppConfig()
     dialogue = DialogueManager(system_prompt=config.system_prompt)
-    llm = OllamaClient(base_url=config.ollama_url, model=config.ollama_model)
+    llm = OllamaClient(
+        base_url=config.ollama_url,
+        model=config.ollama_model,
+        timeout_seconds=config.ollama_timeout_seconds,
+    )
+    router_llm = OllamaClient(
+        base_url=config.ollama_url,
+        model=config.router_ollama_model,
+        timeout_seconds=config.router_timeout_seconds,
+    )
+    router = LLMRouter(
+        llm_client=router_llm,
+        confidence_threshold=config.router_confidence_threshold,
+    )
+    session_memory = SessionMemory(
+        summary_interval=config.short_term_summary_interval,
+        recent_turn_limit=config.short_term_recent_turns,
+    )
     transcriber = FasterWhisperTranscriber(
         model_name=config.stt_model,
         language=config.language or None,
     )
     speaker = EdgeTTSPlayer(voice=config.tts_voice)
     recorder = AudioRecorder(sample_rate=config.sample_rate, audio_dir=config.audio_dir)
+    tools = ToolRegistry(
+        tools={
+            "time": TimeTool(),
+            "calculator": CalculatorTool(),
+            "system_info": SystemInfoTool(config=config, mode=args.mode),
+            "file_search": FileSearchTool(repo_root=Path.cwd()),
+        }
+    )
 
     print("Jarvis is ready.")
     print(f"Mode: {args.mode}")
@@ -63,14 +99,42 @@ def main() -> int:
             continue
 
         dialogue.append_message("user", user_text)
+        session_context = session_memory.build_context_block()
+        tool_output = ""
 
         try:
-            reply = llm.generate_reply(dialogue.build_messages())
+            route = router.decide(
+                user_text=user_text,
+                session_context=session_context,
+                tool_catalog=tools.list_for_prompt(),
+            )
+        except RouterError as exc:
+            print(f"Router warning: {exc}")
+            route = None
+
+        if route and route.route == "tool":
+            try:
+                tool = tools.get(route.tool_name or "")
+                tool_result = tool.run(route.arguments)
+                tool_output = tool_result.output
+                print(f"Tool [{tool_result.tool_name}] was used.")
+            except ToolError as exc:
+                tool_output = f"Tool error: {exc}"
+                print(tool_output)
+
+        try:
+            reply = llm.generate_reply(
+                dialogue.build_messages_with_context(
+                    session_context=session_context,
+                    tool_result=tool_output,
+                )
+            )
         except LLMError as exc:
             print(f"LLM error: {exc}")
             continue
 
         dialogue.append_message("assistant", reply)
+        session_memory.update(user_text=user_text, assistant_text=reply)
         print(f"Jarvis: {reply}")
 
         if args.mode == "voice":
