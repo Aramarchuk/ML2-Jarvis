@@ -20,6 +20,24 @@ class SessionMemoryTest(unittest.TestCase):
 
         self.assertIn("First user turn", memory.summary)
 
+    def test_summary_accumulates_older_context(self) -> None:
+        memory = SessionMemory(summary_interval=2, recent_turn_limit=1)
+
+        memory.update("Turn 1", "Reply 1")
+        memory.update("Turn 2", "Reply 2")
+        memory.update("Turn 3", "Reply 3")
+        memory.update("Turn 4", "Reply 4")
+
+        self.assertIn("Turn 1", memory.summary)
+        self.assertIn("Turn 2", memory.summary)
+
+    def test_answered_question_is_removed_from_open_loops(self) -> None:
+        memory = SessionMemory(summary_interval=2, recent_turn_limit=2)
+
+        memory.update("What time is it?", "It is noon.")
+
+        self.assertEqual(memory.open_loops, [])
+
 
 if __name__ == "__main__":
     unittest.main()

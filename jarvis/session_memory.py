@@ -19,6 +19,7 @@ class SessionMemory:
     last_topics: list[str] = field(default_factory=list)
     open_loops: list[str] = field(default_factory=list)
     turns: list[SessionTurn] = field(default_factory=list)
+    _last_summarized_turn_count: int = 0
 
     def update(self, user_text: str, assistant_text: str) -> None:
         self.turns.append(SessionTurn(user_text=user_text, assistant_text=assistant_text))
@@ -53,6 +54,7 @@ class SessionMemory:
         self.last_topics.clear()
         self.open_loops.clear()
         self.turns.clear()
+        self._last_summarized_turn_count = 0
 
     def get_recent_turns(self) -> list[SessionTurn]:
         return list(self.turns[-self.recent_turn_limit :])
@@ -68,11 +70,17 @@ class SessionMemory:
         if not older_turns:
             return
 
+        new_turns = older_turns[self._last_summarized_turn_count :]
+        if not new_turns:
+            return
+
         summary_parts = [
             f"User: {turn.user_text} Assistant: {turn.assistant_text}"
-            for turn in older_turns[-self.summary_interval :]
+            for turn in new_turns
         ]
-        self.summary = " | ".join(summary_parts)
+        new_summary = " | ".join(summary_parts)
+        self.summary = f"{self.summary} | {new_summary}".strip(" |") if self.summary else new_summary
+        self._last_summarized_turn_count = len(older_turns)
 
     def _update_active_facts(self, user_text: str) -> None:
         patterns = [
@@ -105,4 +113,7 @@ class SessionMemory:
                 self.open_loops.append(prompt)
 
         if self.open_loops and "?" not in assistant_text:
+            self.open_loops.pop(0)
+
+        if len(self.open_loops) > self.recent_turn_limit:
             self.open_loops = self.open_loops[-self.recent_turn_limit :]
