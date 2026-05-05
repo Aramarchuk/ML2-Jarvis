@@ -22,6 +22,11 @@ class AudioRecorder:
             raise AudioError(
                 "Voice mode dependencies are missing. Install requirements.txt first."
             ) from exc
+        except OSError as exc:
+            raise AudioError(
+                "PortAudio is not available on this system. Install the PortAudio runtime "
+                "or development package before using voice mode."
+            ) from exc
 
         self.audio_dir.mkdir(parents=True, exist_ok=True)
         output_path = self.audio_dir / f"recording-{self._timestamp()}.wav"

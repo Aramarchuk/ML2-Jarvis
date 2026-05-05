@@ -10,8 +10,8 @@ class SpeechToTextError(RuntimeError):
 @dataclass(slots=True)
 class FasterWhisperTranscriber:
     model_name: str
-    device: str = "auto"
-    compute_type: str = "auto"
+    device: str = "cpu"
+    compute_type: str = "int8"
     language: str | None = None
     _model: object | None = field(default=None, init=False, repr=False)
 

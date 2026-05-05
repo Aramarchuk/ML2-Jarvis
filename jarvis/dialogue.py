@@ -32,17 +32,23 @@ class DialogueManager:
         if not session_context and not tool_result:
             return messages
 
-        insert_parts: list[str] = []
+        context_parts: list[str] = []
         if session_context:
-            insert_parts.append(f"Short-term session context:\n{session_context}")
+            context_parts.append(f"Short-term session context:\n{session_context}")
         if tool_result:
-            insert_parts.append(f"Tool result:\n{tool_result}")
+            context_parts.append(f"Tool result:\n{tool_result}")
 
-        messages.insert(
-            1,
-            {
+        if messages and messages[0]["role"] == "system":
+            messages[0] = {
                 "role": "system",
-                "content": "\n\n".join(insert_parts),
-            },
-        )
+                "content": self.system_prompt + "\n\n" + "\n\n".join(context_parts),
+            }
+        else:
+            messages.insert(
+                0,
+                {
+                    "role": "system",
+                    "content": self.system_prompt + "\n\n" + "\n\n".join(context_parts),
+                },
+            )
         return messages

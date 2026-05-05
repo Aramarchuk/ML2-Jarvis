@@ -2,7 +2,7 @@
 
 ML2 Jarvis is a minimal Python voice assistant skeleton designed for the "Build Your Own Jarvis" basic solution. It provides a clean starting point for:
 
-- local LLM chat through Ollama,
+- local or external LLM chat,
 - in-memory dialogue history,
 - speech-to-text with Faster Whisper,
 - text-to-speech with Edge TTS,
@@ -37,11 +37,11 @@ ML2 Jarvis is a minimal Python voice assistant skeleton designed for the "Build 
 ## Requirements
 
 - Python 3.12+
-- Ollama installed and running locally for LLM responses
-- A local Ollama model, for example `llama3.2:3b` or another small chat model
+- Either an OpenAI-compatible API endpoint with an API key, or a local Ollama setup
 
 Optional voice dependencies:
 - A working microphone for voice mode
+- PortAudio installed on the system for `sounddevice`
 - `ffplay`, `mpv`, or another supported local audio player for Edge TTS playback
 
 ## Setup
@@ -53,13 +53,26 @@ Optional voice dependencies:
 pip install -r requirements.txt
 ```
 
+If voice mode fails with `PortAudio library not found`, install the system package first.
+Examples:
+
+```bash
+sudo apt install portaudio19-dev
+```
+
+or on Fedora:
+
+```bash
+sudo dnf install portaudio-devel
+```
+
 3. Copy the environment template:
 
 ```bash
 cp .env.example .env
 ```
 
-4. Start Ollama and make sure the configured model is available:
+4. If you use Ollama, start it and make sure the configured model is available:
 
 ```bash
 ollama serve
@@ -91,12 +104,19 @@ python main.py --help
 The application reads configuration from `.env` or the process environment:
 
 - `JARVIS_SYSTEM_PROMPT`
+- `JARVIS_LLM_BACKEND`
+- `JARVIS_LLM_BASE_URL`
+- `JARVIS_LLM_API_KEY`
+- `JARVIS_LLM_MODEL`
+- `JARVIS_ROUTER_LLM_MODEL`
 - `JARVIS_OLLAMA_URL`
 - `JARVIS_OLLAMA_MODEL`
 - `JARVIS_ROUTER_OLLAMA_MODEL`
 - `JARVIS_OLLAMA_TIMEOUT_SECONDS`
 - `JARVIS_ROUTER_TIMEOUT_SECONDS`
 - `JARVIS_STT_MODEL`
+- `JARVIS_STT_DEVICE`
+- `JARVIS_STT_COMPUTE_TYPE`
 - `JARVIS_TTS_VOICE`
 - `JARVIS_RECORD_SECONDS`
 - `JARVIS_SAMPLE_RATE`
@@ -110,5 +130,7 @@ The application reads configuration from `.env` or the process environment:
 
 - Text mode is the easiest way to verify the LLM and dialogue stack first.
 - Voice mode records a short clip, transcribes it, then synthesizes the assistant reply.
-- The router can use a different Ollama model than the main assistant. The default template uses `tinyllama` for routing and `llama3.2:3b` for final responses.
+- The router can use a different model than the main assistant.
+- The default external setup uses `Qwen/Qwen3.5-35B-A3B-FP8` for final responses and `IBM/granite-4.0-micro` for routing.
+- STT now defaults to CPU execution with `JARVIS_STT_DEVICE=cpu` and `JARVIS_STT_COMPUTE_TYPE=int8` to avoid CUDA runtime issues on machines without a working GPU stack.
 - If speech recognition or synthesis dependencies are not installed correctly, the program will report a clear error instead of crashing without context.

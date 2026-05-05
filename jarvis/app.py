@@ -6,7 +6,7 @@ from pathlib import Path
 from jarvis.audio import AudioError, AudioRecorder
 from jarvis.config import AppConfig
 from jarvis.dialogue import DialogueManager
-from jarvis.llm import LLMError, OllamaClient
+from jarvis.llm import ChatClient, LLMError, OllamaClient, OpenAICompatibleClient
 from jarvis.router import LLMRouter, RouterError
 from jarvis.session_memory import SessionMemory
 from jarvis.stt import FasterWhisperTranscriber, SpeechToTextError
@@ -44,16 +44,8 @@ def main() -> int:
 
     config = AppConfig()
     dialogue = DialogueManager(system_prompt=config.system_prompt)
-    llm = OllamaClient(
-        base_url=config.ollama_url,
-        model=config.ollama_model,
-        timeout_seconds=config.ollama_timeout_seconds,
-    )
-    router_llm = OllamaClient(
-        base_url=config.ollama_url,
-        model=config.router_ollama_model,
-        timeout_seconds=config.router_timeout_seconds,
-    )
+    llm = _build_chat_client(config=config, for_router=False)
+    router_llm = _build_chat_client(config=config, for_router=True)
     router = LLMRouter(
         llm_client=router_llm,
         confidence_threshold=config.router_confidence_threshold,
@@ -64,6 +56,8 @@ def main() -> int:
     )
     transcriber = FasterWhisperTranscriber(
         model_name=config.stt_model,
+        device=config.stt_device,
+        compute_type=config.stt_compute_type,
         language=config.language or None,
     )
     speaker = EdgeTTSPlayer(voice=config.tts_voice)
@@ -79,6 +73,7 @@ def main() -> int:
 
     print("Jarvis is ready.")
     print(f"Mode: {args.mode}")
+    print(f"LLM backend: {config.llm_backend}")
     print("Type 'exit' to leave the session in text mode.")
 
     turn_count = 0
@@ -171,3 +166,27 @@ def _handle_voice_turn(
     transcript = transcriber.transcribe(audio_path)
     print(f"You said: {transcript}")
     return transcript
+
+
+def _build_chat_client(config: AppConfig, for_router: bool) -> ChatClient:
+    if config.llm_backend == "ollama":
+        return OllamaClient(
+            base_url=config.ollama_url,
+            model=config.router_ollama_model if for_router else config.ollama_model,
+            timeout_seconds=(
+                config.router_timeout_seconds
+                if for_router
+                else config.ollama_timeout_seconds
+            ),
+        )
+
+    return OpenAICompatibleClient(
+        base_url=config.llm_base_url.rstrip("/"),
+        api_key=config.llm_api_key,
+        model=config.router_llm_model if for_router else config.llm_model,
+        timeout_seconds=(
+            config.router_timeout_seconds
+            if for_router
+            else config.ollama_timeout_seconds
+        ),
+    )
