@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 
-from jarvis.llm import LLMError, OllamaClient
+from jarvis.llm import ChatClient, LLMError
 
 
 @dataclass(slots=True)
@@ -21,7 +21,7 @@ class RouterError(RuntimeError):
 
 @dataclass(slots=True)
 class LLMRouter:
-    llm_client: OllamaClient
+    llm_client: ChatClient
     confidence_threshold: float
 
     def decide(

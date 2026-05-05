@@ -26,6 +26,21 @@ class DialogueManagerTest(unittest.TestCase):
             ],
         )
 
+    def test_merges_context_into_first_system_message(self) -> None:
+        dialogue = DialogueManager(system_prompt="System message")
+        dialogue.append_message("user", "Hello")
+
+        messages = dialogue.build_messages_with_context(
+            session_context="Topic: routing",
+            tool_result="Current time: 12:00",
+        )
+
+        self.assertEqual(messages[0]["role"], "system")
+        self.assertIn("System message", messages[0]["content"])
+        self.assertIn("Topic: routing", messages[0]["content"])
+        self.assertIn("Current time: 12:00", messages[0]["content"])
+        self.assertEqual(sum(1 for message in messages if message["role"] == "system"), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -65,9 +65,12 @@ class CalculatorTool(Tool):
     }
 
     def run(self, arguments: dict[str, object]) -> ToolResult:
-        expression = str(arguments.get("expression", "")).strip()
-        if not expression:
+        raw_expression = str(arguments.get("expression", "")).strip()
+        if not raw_expression:
             raise ToolError("The calculator tool requires a non-empty expression.")
+        expression = self._normalize_expression(raw_expression)
+        if not expression:
+            raise ToolError("The calculator tool could not extract a valid expression.")
         try:
             result = self._evaluate(ast.parse(expression, mode="eval").body)
         except Exception as exc:
@@ -89,6 +92,31 @@ class CalculatorTool(Tool):
             return self._operators[type(node.op)](operand)
         raise ToolError("The calculator tool accepts numbers and arithmetic operators only.")
 
+    @staticmethod
+    def _normalize_expression(expression: str) -> str:
+        normalized = expression.lower().strip()
+        phrase_replacements = {
+            "divided by": "/",
+            "multiplied by": "*",
+            "times": "*",
+            "plus": "+",
+            "minus": "-",
+            "over": "/",
+        }
+        for source, target in phrase_replacements.items():
+            normalized = normalized.replace(source, f" {target} ")
+
+        normalized = normalized.replace("×", "*").replace("x", "*")
+        normalized = re.sub(
+            r"\b(how much is|what is|what's|calculate|compute|please|equals|equal to)\b",
+            " ",
+            normalized,
+        )
+        normalized = normalized.replace("?", " ")
+        normalized = re.sub(r"[^0-9+\-*/().% ]", " ", normalized)
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        return normalized
+
 
 class SystemInfoTool(Tool):
     name = "system_info"
@@ -100,11 +128,23 @@ class SystemInfoTool(Tool):
         self._mode = mode
 
     def run(self, arguments: dict[str, object]) -> ToolResult:
+        llm_model = (
+            self._config.llm_model
+            if self._config.llm_backend != "ollama"
+            else self._config.ollama_model
+        )
+        router_model = (
+            self._config.router_llm_model
+            if self._config.llm_backend != "ollama"
+            else self._config.router_ollama_model
+        )
         return ToolResult(
             tool_name=self.name,
             output=(
                 f"Mode: {self._mode}\n"
-                f"Model: {self._config.ollama_model}\n"
+                f"LLM backend: {self._config.llm_backend}\n"
+                f"Assistant model: {llm_model}\n"
+                f"Router model: {router_model}\n"
                 f"Language: {self._config.language}\n"
                 f"Record seconds: {self._config.record_seconds}\n"
                 f"Sample rate: {self._config.sample_rate}"
