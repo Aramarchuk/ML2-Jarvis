@@ -67,14 +67,18 @@ class AppConfig:
         "JARVIS_LLM_API_KEY",
         _extract_legacy_assignment("API_KEY", ""),
     )
-    llm_model: str = os.getenv("JARVIS_LLM_MODEL", "Qwen/Qwen3.5-35B-A3B-FP8")
-    router_llm_model: str = os.getenv(
-        "JARVIS_ROUTER_LLM_MODEL",
-        "IBM/granite-4.0-micro",
+    assistant_model: str = os.getenv(
+        "JARVIS_ASSISTANT_MODEL",
+        os.getenv("JARVIS_LLM_MODEL", "Qwen/Qwen3.5-35B-A3B-FP8"),
+    )
+    router_model: str = os.getenv(
+        "JARVIS_ROUTER_MODEL",
+        os.getenv(
+            "JARVIS_ROUTER_LLM_MODEL",
+            os.getenv("JARVIS_ROUTER_OLLAMA_MODEL", "IBM/granite-4.0-micro"),
+        ),
     )
     ollama_url: str = os.getenv("JARVIS_OLLAMA_URL", "http://127.0.0.1:11434")
-    ollama_model: str = os.getenv("JARVIS_OLLAMA_MODEL", "llama3.2:3b")
-    router_ollama_model: str = os.getenv("JARVIS_ROUTER_OLLAMA_MODEL", "tinyllama")
     ollama_timeout_seconds: int = int(os.getenv("JARVIS_OLLAMA_TIMEOUT_SECONDS", "120"))
     router_timeout_seconds: int = int(os.getenv("JARVIS_ROUTER_TIMEOUT_SECONDS", "30"))
     stt_model: str = os.getenv("JARVIS_STT_MODEL", "base")
@@ -92,3 +96,21 @@ class AppConfig:
         os.getenv("JARVIS_SHORT_TERM_SUMMARY_INTERVAL", "4")
     )
     short_term_recent_turns: int = int(os.getenv("JARVIS_SHORT_TERM_RECENT_TURNS", "4"))
+
+    # Legacy aliases kept for backward compatibility with older local configs.
+    llm_model: str = os.getenv(
+        "JARVIS_LLM_MODEL",
+        os.getenv("JARVIS_ASSISTANT_MODEL", "Qwen/Qwen3.5-35B-A3B-FP8"),
+    )
+    router_llm_model: str = os.getenv(
+        "JARVIS_ROUTER_LLM_MODEL",
+        os.getenv("JARVIS_ROUTER_MODEL", "IBM/granite-4.0-micro"),
+    )
+    ollama_model: str = os.getenv(
+        "JARVIS_OLLAMA_MODEL",
+        os.getenv("JARVIS_ASSISTANT_MODEL", "llama3.2:3b"),
+    )
+    router_ollama_model: str = os.getenv(
+        "JARVIS_ROUTER_OLLAMA_MODEL",
+        os.getenv("JARVIS_ROUTER_MODEL", "tinyllama"),
+    )

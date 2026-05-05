@@ -38,6 +38,8 @@ class SystemInfoToolTest(unittest.TestCase):
 
         self.assertIn("Mode: text", result.output)
         self.assertIn(f"LLM backend: {config.llm_backend}", result.output)
+        self.assertIn(f"Assistant model: {config.assistant_model}", result.output)
+        self.assertIn(f"Router model: {config.router_model}", result.output)
 
 
 if __name__ == "__main__":
