@@ -7,6 +7,7 @@ import ast
 import operator
 from pathlib import Path
 import re
+import shutil
 import subprocess
 
 from jarvis.config import AppConfig
@@ -73,6 +74,8 @@ class CalculatorTool(Tool):
             raise ToolError("The calculator tool could not extract a valid expression.")
         try:
             result = self._evaluate(ast.parse(expression, mode="eval").body)
+        except ToolError:
+            raise
         except Exception as exc:
             raise ToolError("The calculator tool could not evaluate the expression.") from exc
         return ToolResult(
@@ -86,6 +89,10 @@ class CalculatorTool(Tool):
         if isinstance(node, ast.BinOp) and type(node.op) in self._operators:
             left = self._evaluate(node.left)
             right = self._evaluate(node.right)
+            if isinstance(node.op, ast.Pow) and (abs(left) > 1_000 or abs(right) > 12):
+                raise ToolError(
+                    "Exponentiation is limited to avoid extremely expensive calculations."
+                )
             return self._operators[type(node.op)](left, right)
         if isinstance(node, ast.UnaryOp) and type(node.op) in self._operators:
             operand = self._evaluate(node.operand)
@@ -132,7 +139,6 @@ class SystemInfoTool(Tool):
             tool_name=self.name,
             output=(
                 f"Mode: {self._mode}\n"
-                f"LLM backend: {self._config.llm_backend}\n"
                 f"Assistant model: {self._config.assistant_model}\n"
                 f"Router model: {self._config.router_model}\n"
                 f"Language: {self._config.language}\n"
@@ -158,17 +164,11 @@ class FileSearchTool(Tool):
         if not sanitized:
             raise ToolError("The file search query does not contain searchable text.")
 
-        try:
-            result = subprocess.run(
-                ["rg", "-n", "--max-count", "5", sanitized, str(self._repo_root)],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-        except FileNotFoundError as exc:
-            raise ToolError("ripgrep is not installed, so file search is unavailable.") from exc
-
-        output = result.stdout.strip()
+        output = (
+            self._search_with_ripgrep(sanitized)
+            if shutil.which("rg")
+            else self._search_with_python(sanitized)
+        )
         if not output:
             return ToolResult(
                 tool_name=self.name,
@@ -179,6 +179,34 @@ class FileSearchTool(Tool):
     @staticmethod
     def _sanitize_query(query: str) -> str:
         return re.sub(r"[^a-zA-Z0-9_\- ./]", " ", query).strip()
+
+    def _search_with_ripgrep(self, query: str) -> str:
+        result = subprocess.run(
+            ["rg", "-n", "--max-count", "5", query, str(self._repo_root)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout.strip()
+
+    def _search_with_python(self, query: str) -> str:
+        matches: list[str] = []
+        pattern = query.casefold()
+        for path in self._repo_root.rglob("*"):
+            if len(matches) >= 5 or not path.is_file():
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+
+            for line_number, line in enumerate(text.splitlines(), start=1):
+                if pattern in line.casefold():
+                    relative_path = path.relative_to(self._repo_root)
+                    matches.append(f"{relative_path}:{line_number}:{line}")
+                    break
+
+        return "\n".join(matches)
 
 
 @dataclass(slots=True)

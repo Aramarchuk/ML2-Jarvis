@@ -2,7 +2,7 @@
 
 ML2 Jarvis is a minimal Python voice assistant skeleton designed for the "Build Your Own Jarvis" basic solution. It provides a clean starting point for:
 
-- local or external LLM chat,
+- external LLM chat through `https://hub.nhr.fau.de/api/llmgw/v1`,
 - in-memory dialogue history,
 - speech-to-text with Faster Whisper,
 - text-to-speech with Edge TTS,
@@ -37,7 +37,7 @@ ML2 Jarvis is a minimal Python voice assistant skeleton designed for the "Build 
 ## Requirements
 
 - Python 3.12+
-- Either an OpenAI-compatible API endpoint with an API key, or a local Ollama setup
+- Access to `https://hub.nhr.fau.de/api/llmgw/v1` with a private API key
 
 For the configured external endpoint at `https://hub.nhr.fau.de/api/llmgw/v1`, access requires a private API key.
 Contact the project owner directly to obtain that key. Do not commit or publish it.
@@ -46,6 +46,7 @@ Optional voice dependencies:
 - A working microphone for voice mode
 - PortAudio installed on the system for `sounddevice`
 - `ffplay`, `mpv`, or another supported local audio player for Edge TTS playback
+- `ripgrep` for faster file-search tool execution
 
 ## Setup
 
@@ -69,17 +70,23 @@ or on Fedora:
 sudo dnf install portaudio-devel
 ```
 
+If you want the `file_search` tool to use `ripgrep` instead of the built-in Python fallback, install it as a system package.
+Examples:
+
+```bash
+sudo apt install ripgrep
+```
+
+or on Fedora:
+
+```bash
+sudo dnf install ripgrep
+```
+
 3. Copy the environment template:
 
 ```bash
 cp .env.example .env
-```
-
-4. If you use Ollama, start it and make sure the configured model is available:
-
-```bash
-ollama serve
-ollama pull llama3.2:3b
 ```
 
 ## Usage
@@ -107,13 +114,11 @@ python main.py --help
 The application reads configuration from `.env` or the process environment:
 
 - `JARVIS_SYSTEM_PROMPT`
-- `JARVIS_LLM_BACKEND`
 - `JARVIS_LLM_BASE_URL`
 - `JARVIS_LLM_API_KEY`
 - `JARVIS_ASSISTANT_MODEL`
 - `JARVIS_ROUTER_MODEL`
-- `JARVIS_OLLAMA_URL`
-- `JARVIS_OLLAMA_TIMEOUT_SECONDS`
+- `JARVIS_LLM_TIMEOUT_SECONDS`
 - `JARVIS_ROUTER_TIMEOUT_SECONDS`
 - `JARVIS_STT_MODEL`
 - `JARVIS_STT_DEVICE`
@@ -127,11 +132,38 @@ The application reads configuration from `.env` or the process environment:
 - `JARVIS_SHORT_TERM_SUMMARY_INTERVAL`
 - `JARVIS_SHORT_TERM_RECENT_TURNS`
 
+## Task Coverage
+
+Implemented from `task.md`:
+
+- `Understanding Language Models Integration`
+  - external LLM integration through `https://hub.nhr.fau.de/api/llmgw/v1`
+  - separate assistant and router models
+
+- `Handling Dialogue`
+  - multi-turn dialogue history
+  - short-term session context injection
+
+- `Voice Recognition Integration`
+  - microphone recording
+  - speech-to-text with Faster Whisper
+
+- `Voice Generation Integration`
+  - speech synthesis with Edge TTS
+
+- `Add Short-term Memory`
+  - rolling session summary
+  - active facts, recent topics, and open-loop tracking
+
+- `Add Routing and Tools`
+  - LLM-based router
+  - built-in tools: `time`, `calculator`, `system_info`, `file_search`
+
 ## Notes
 
 - Text mode is the easiest way to verify the LLM and dialogue stack first.
 - Voice mode records a short clip, transcribes it, then synthesizes the assistant reply.
-- The assistant and router each use one model setting regardless of backend:
+- The assistant and router each use one model setting:
   - `JARVIS_ASSISTANT_MODEL`
   - `JARVIS_ROUTER_MODEL`
 - The default external setup uses `Qwen/Qwen3.5-35B-A3B-FP8` for final responses and `IBM/granite-4.0-micro` for routing.
