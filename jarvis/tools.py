@@ -128,23 +128,13 @@ class SystemInfoTool(Tool):
         self._mode = mode
 
     def run(self, arguments: dict[str, object]) -> ToolResult:
-        llm_model = (
-            self._config.llm_model
-            if self._config.llm_backend != "ollama"
-            else self._config.ollama_model
-        )
-        router_model = (
-            self._config.router_llm_model
-            if self._config.llm_backend != "ollama"
-            else self._config.router_ollama_model
-        )
         return ToolResult(
             tool_name=self.name,
             output=(
                 f"Mode: {self._mode}\n"
                 f"LLM backend: {self._config.llm_backend}\n"
-                f"Assistant model: {llm_model}\n"
-                f"Router model: {router_model}\n"
+                f"Assistant model: {self._config.assistant_model}\n"
+                f"Router model: {self._config.router_model}\n"
                 f"Language: {self._config.language}\n"
                 f"Record seconds: {self._config.record_seconds}\n"
                 f"Sample rate: {self._config.sample_rate}"

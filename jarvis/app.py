@@ -169,10 +169,12 @@ def _handle_voice_turn(
 
 
 def _build_chat_client(config: AppConfig, for_router: bool) -> ChatClient:
+    model = config.router_model if for_router else config.assistant_model
+
     if config.llm_backend == "ollama":
         return OllamaClient(
             base_url=config.ollama_url,
-            model=config.router_ollama_model if for_router else config.ollama_model,
+            model=model,
             timeout_seconds=(
                 config.router_timeout_seconds
                 if for_router
@@ -183,7 +185,7 @@ def _build_chat_client(config: AppConfig, for_router: bool) -> ChatClient:
     return OpenAICompatibleClient(
         base_url=config.llm_base_url.rstrip("/"),
         api_key=config.llm_api_key,
-        model=config.router_llm_model if for_router else config.llm_model,
+        model=model,
         timeout_seconds=(
             config.router_timeout_seconds
             if for_router
